@@ -82,16 +82,16 @@ export default () => {
       })
 
       const searchResult = await searchResponse.json()
-      const searchBoxText = searchResult?.answerBox?.answer ?? 'Not Found'
+      const searchBoxText = searchResult?.answerBox?.answer
       const searchSnippetsText = (searchResult?.organic ?? [])
-        .slice(0, 3)
-        .map((o: any) => o.snippet)
-        .join('\n')
+        .slice(0, 4)
+        .map((o: any) => `> \`${o.title}\` - ${o.snippet}`)
+        .join('\n\n')
 
       if (searchSnippetsText.trim().length > 0) {
         const content = searchBoxText === undefined
-          ? `Search engine snippets:\n${searchSnippetsText}`
-          : `Search engine answer: ${searchBoxText}\nSearch engine snippets:\n${searchSnippetsText}`
+          ? `Search Engine Snippets:\n${searchSnippetsText}`
+          : `Search Engine Answer: ${searchBoxText}\nSearch Engine Snippets:\n${searchSnippetsText}`
 
         setMessageList([
           ...messageList(),
