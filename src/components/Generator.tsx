@@ -68,9 +68,46 @@ export default () => {
     setCurrentError(null)
     const storagePassword = localStorage.getItem('pass')
     try {
+      // TODO: only first message
+      // TODO: message keywords
+      // >> append search engine text
+      const userMessage = messageList()?.[messageList().length - 1]?.content
+
+      const searchResponse = await fetch('/api/search', {
+        method: 'POSt',
+        body: JSON.stringify({
+          q: userMessage,
+          pass: storagePassword,
+        }),
+      })
+
+      const searchResult = await searchResponse.json()
+      const searchBoxText = searchResult?.answerBox?.answer ?? 'Not Found'
+      const searchSnippetsText = (searchResult?.organic ?? [])
+        .slice(0, 3)
+        .map((o: any) => o.snippet)
+        .join('\n')
+
+      if (searchSnippetsText.trim().length > 0) {
+        const content = searchBoxText === undefined
+          ? `Search engine snippets:\n${searchSnippetsText}`
+          : `Search engine answer: ${searchBoxText}\nSearch engine snippets:\n${searchSnippetsText}`
+
+        setMessageList([
+          ...messageList(),
+          {
+            role: 'system',
+            content,
+          },
+        ])
+      }
+
+      // << append search engine text
+
       const controller = new AbortController()
       setController(controller)
       const requestMessageList = [...messageList()]
+
       if (currentSystemRoleSettings()) {
         requestMessageList.unshift({
           role: 'system',
@@ -86,7 +123,7 @@ export default () => {
           pass: storagePassword,
           sign: await generateSignature({
             t: timestamp,
-            m: requestMessageList?.[requestMessageList.length - 1]?.content || '',
+            m: userMessage ?? '',
           }),
         }),
         signal: controller.signal,
