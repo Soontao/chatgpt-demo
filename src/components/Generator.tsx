@@ -123,7 +123,7 @@ export default () => {
           pass: storagePassword,
           sign: await generateSignature({
             t: timestamp,
-            m: userMessage ?? '',
+            m: JSON.stringify(requestMessageList) ?? '',
           }),
         }),
         signal: controller.signal,
