@@ -35,9 +35,9 @@ export default defineConfig({
       process.env.OUTPUT !== 'netlify' && VitePWA({
         registerType: 'autoUpdate',
         manifest: {
-          name: 'ChatGPT-API Demo',
-          short_name: 'ChatGPT Demo',
-          description: 'A demo repo based on OpenAI API',
+          name: 'ChatGPT Search',
+          short_name: 'ChatGPT Search',
+          description: 'Search Engine with OpenAI',
           theme_color: '#212129',
           background_color: '#ffffff',
           icons: [
