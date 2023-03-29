@@ -1,9 +1,5 @@
-/* eslint-disable no-console */
-import vm from 'vm'
-// #vercel-disable-blocks
 import { inspect } from 'util'
-import { fetch } from 'undici'
-// #vercel-end
+import { EdgeVM } from '@edge-runtime/vm'
 import { validatePass } from '@/utils/validatePass'
 import type { APIRoute } from 'astro'
 
@@ -16,31 +12,22 @@ export const post: APIRoute = async(context) => {
     return r
 
   try {
-    const s = new vm.Script(script, { filename: '__user_script.js' })
     const stdOutputs = []
-    const r = s.runInNewContext(
-      {
-        fetch,
-        console: {
-          ...console,
-          log: (...args: any[]) => {
-            stdOutputs.push(args.map(a => inspect(a)).join(' '))
-            console.debug('SCRIPT output', ...args)
-          },
-        },
+    const vm = new EdgeVM({
+      extend: (ctx) => {
+        ctx.console.log = (...args: any[]) => {
+          stdOutputs.push(args.map(a => inspect(a)).join(' '))
+          ctx.console.debug('SCRIPT output', ...args)
+        }
+        return ctx
       },
-      {
-        timeout: 10000,
-      },
+    })
+    const s = await vm.evaluate(script)
+    return new Response(
+      JSON.stringify({
+        result: s ?? stdOutputs.join('\n'),
+      }),
     )
-
-    if (r instanceof Promise) {
-      return new Response(
-        JSON.stringify({
-          result: await r ?? stdOutputs.join('\n'),
-        }),
-      )
-    }
   } catch (error) {
     return new Response(
       JSON.stringify({
