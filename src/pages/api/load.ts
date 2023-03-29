@@ -1,6 +1,4 @@
-// #vercel-disable-blocks
 import { fetch } from 'undici'
-// #vercel-end
 import { NodeHtmlMarkdown } from 'node-html-markdown'
 import { validatePass } from '@/utils/validatePass'
 import type { APIRoute } from 'astro'
