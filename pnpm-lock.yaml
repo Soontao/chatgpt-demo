@@ -5,6 +5,7 @@ specifiers:
   '@astrojs/node': ^5.0.4
   '@astrojs/solid-js': ^2.0.2
   '@astrojs/vercel': ^3.1.3
+  '@edge-runtime/format': ^2.0.1
   '@edge-runtime/vm': ^2.1.2
   '@evan-yang/eslint-config': ^1.0.1
   '@iconify-json/carbon': ^1.1.16
@@ -39,6 +40,7 @@ dependencies:
   '@astrojs/node': 5.1.0_astro@2.1.3
   '@astrojs/solid-js': 2.1.0_fqjiu6dx33dr7dveogf7j2esim
   '@astrojs/vercel': 3.2.1_astro@2.1.3+react@18.2.0
+  '@edge-runtime/format': 2.0.1
   '@edge-runtime/vm': 2.1.2
   '@unocss/reset': 0.50.4
   astro: 2.1.3_@types+node@18.15.11
@@ -1385,6 +1387,11 @@ packages:
       '@babel/helper-string-parser': 7.19.4
       '@babel/helper-validator-identifier': 7.19.1
       to-fast-properties: 2.0.0
+
+  /@edge-runtime/format/2.0.1:
+    resolution: {integrity: sha512-aE+9DtBvQyg349srixtXEUNauWtIv5HTKPy8Q9dvG1NvpldVIvvhcDBI+SuvDVM8kQl8phbYnp2NTNloBCn/Yg==}
+    engines: {node: '>=14'}
+    dev: false
 
   /@edge-runtime/primitives/2.1.2:
     resolution: {integrity: sha512-SR04SMDybALlhIYIi0hiuEUwIl0b7Sn+RKwQkX6hydg4+AKMzBNDFhj2nqHDD1+xkHArV9EhmJIb6iGjShwSzg==}

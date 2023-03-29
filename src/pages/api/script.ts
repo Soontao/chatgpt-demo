@@ -1,7 +1,9 @@
-import { inspect } from 'util'
 import { EdgeVM } from '@edge-runtime/vm'
+import { createFormat } from '@edge-runtime/format'
 import { validatePass } from '@/utils/validatePass'
 import type { APIRoute } from 'astro'
+
+const format = createFormat()
 
 export const post: APIRoute = async(context) => {
   const { pass, script } = await context.request.json()
@@ -16,7 +18,7 @@ export const post: APIRoute = async(context) => {
     const vm = new EdgeVM({
       extend: (ctx) => {
         ctx.console.log = (...args: any[]) => {
-          stdOutputs.push(args.map(a => inspect(a)).join(' '))
+          stdOutputs.push(args.map(a => format(a)).join(' '))
           ctx.console.debug('SCRIPT output', ...args)
         }
         return ctx
