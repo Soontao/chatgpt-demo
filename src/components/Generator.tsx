@@ -12,7 +12,7 @@ export default () => {
   let inputRef: HTMLTextAreaElement
   const [currentSystemRoleSettings, setCurrentSystemRoleSettings]
     = createSignal(SYSTEM_PROMPT)
-  const [systemRoleEditing, setSystemRoleEditing] = createSignal(false)
+  const [systemRoleEditing] = createSignal(false)
   const [messageList, setMessageList] = createSignal<ChatMessage[]>([])
   const [currentError, setCurrentError] = createSignal<ErrorMessage>()
   const [currentAssistantMessage, setCurrentAssistantMessage]
@@ -223,7 +223,10 @@ export default () => {
       }
 
       if (aiMessage.startsWith('SCRIPT:')) {
-        const script = aiMessage.substring('SCRIPT:'.length)
+        let script = aiMessage.substring('SCRIPT:'.length).trim()
+
+        if (script.startsWith('```'))
+          script = script.substring(script.indexOf('```') + 3, script.lastIndexOf('```'))
 
         const response = await fetch('/api/script', {
           method: 'post',
@@ -237,12 +240,12 @@ export default () => {
         if (error) {
           messages.push({
             role: 'system',
-            content: `Execute script failed:\n${error}`,
+            content: `Execute script failed:\n\n\`${error}\``,
           })
         } else {
           messages.push({
             role: 'system',
-            content: `Script result is:\n\`\`\`js\n${result}\n\`\`\``,
+            content: `Script result is:\n\n\`\`\`\n${result}\n\`\`\``,
           })
         }
 
@@ -292,11 +295,7 @@ export default () => {
   return (
     <div my-6>
       <SystemRoleSettings
-        canEdit={() => messageList().length === 0}
-        systemRoleEditing={systemRoleEditing}
-        setSystemRoleEditing={setSystemRoleEditing}
         currentSystemRoleSettings={currentSystemRoleSettings}
-        setCurrentSystemRoleSettings={setCurrentSystemRoleSettings}
       />
       <Index each={messageList()}>
         {(message, index) => (

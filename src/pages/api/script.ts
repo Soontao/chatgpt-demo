@@ -19,6 +19,7 @@ export const post: APIRoute = async(context) => {
     })
 
     const r = await runtimeScript.runInNewContext({
+      ...globalThis,
       fetch,
       console: {
         ...console,
