@@ -1,12 +1,11 @@
-import { EdgeVM } from '@edge-runtime/vm'
-import { createFormat } from '@edge-runtime/format'
 import { validatePass } from '@/utils/validatePass'
 import type { APIRoute } from 'astro'
 
-const format = createFormat()
-
 export const post: APIRoute = async(context) => {
+  const { EdgeVM } = await import('@edge-runtime/vm')
+  const { createFormat } = await import('@edge-runtime/format')
   const { pass, script } = await context.request.json()
+  const format = createFormat()
 
   const r = validatePass(pass)
 
