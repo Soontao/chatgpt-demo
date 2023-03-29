@@ -179,6 +179,7 @@ export default () => {
 
   const archiveCurrentMessage = async() => {
     const aiMessage = currentAssistantMessage()
+    // ai response nothing, means no input from AI
     if (aiMessage) {
       const messages: any = [
         {
@@ -220,12 +221,41 @@ export default () => {
         smoothToBottom()
         return requestWithLatestMessage()
       }
+
+      if (aiMessage.startsWith('SCRIPT:')) {
+        const script = aiMessage.substring('SCRIPT:'.length)
+
+        const response = await fetch('/api/script', {
+          method: 'post',
+          body: JSON.stringify({
+            script,
+            pass: localStorage.getItem('pass'),
+          }),
+        })
+        const { result, error } = await response.json()
+
+        if (error) {
+          messages.push({
+            role: 'system',
+            content: `Execute script failed:\n${error}`,
+          })
+        } else {
+          messages.push({
+            role: 'system',
+            content: `Script result is:\n\`\`\`js\n${result}\n\`\`\``,
+          })
+        }
+
+        setMessageList([...messageList(), ...messages])
+        smoothToBottom()
+        return requestWithLatestMessage()
+      }
       setMessageList([...messageList(), ...messages])
-      setCurrentAssistantMessage('')
-      setLoading(false)
-      setController(null)
-      inputRef.focus()
     }
+    setCurrentAssistantMessage('')
+    setLoading(false)
+    setController(null)
+    inputRef.focus()
   }
 
   const clear = () => {
