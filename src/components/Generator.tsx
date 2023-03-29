@@ -1,6 +1,7 @@
 import { Index, Show, createSignal, onCleanup, onMount } from 'solid-js'
 import { useThrottleFn } from 'solidjs-use'
 import { generateSignature } from '@/utils/auth'
+import { SYSTEM_PROMPT } from '@/prompts/system'
 import IconClear from './icons/Clear'
 import MessageItem from './MessageItem'
 import SystemRoleSettings from './SystemRoleSettings'
@@ -9,11 +10,13 @@ import type { ChatMessage, ErrorMessage } from '@/types'
 
 export default () => {
   let inputRef: HTMLTextAreaElement
-  const [currentSystemRoleSettings, setCurrentSystemRoleSettings] = createSignal('')
+  const [currentSystemRoleSettings, setCurrentSystemRoleSettings]
+    = createSignal(SYSTEM_PROMPT)
   const [systemRoleEditing, setSystemRoleEditing] = createSignal(false)
   const [messageList, setMessageList] = createSignal<ChatMessage[]>([])
   const [currentError, setCurrentError] = createSignal<ErrorMessage>()
-  const [currentAssistantMessage, setCurrentAssistantMessage] = createSignal('')
+  const [currentAssistantMessage, setCurrentAssistantMessage]
+    = createSignal('')
   const [loading, setLoading] = createSignal(false)
   const [controller, setController] = createSignal<AbortController>(null)
 
@@ -22,8 +25,11 @@ export default () => {
       if (localStorage.getItem('messageList'))
         setMessageList(JSON.parse(localStorage.getItem('messageList')))
 
-      if (localStorage.getItem('systemRoleSettings'))
-        setCurrentSystemRoleSettings(localStorage.getItem('systemRoleSettings'))
+      if (localStorage.getItem('systemRoleSettings')) {
+        setCurrentSystemRoleSettings(
+          localStorage.getItem('systemRoleSettings'),
+        )
+      }
     } catch (err) {
       console.error(err)
     }
@@ -36,13 +42,12 @@ export default () => {
 
   const handleBeforeUnload = () => {
     localStorage.setItem('messageList', JSON.stringify(messageList()))
-    localStorage.setItem('systemRoleSettings', currentSystemRoleSettings())
+    // localStorage.setItem('systemRoleSettings', currentSystemRoleSettings())
   }
 
   const handleButtonClick = async() => {
     const inputValue = inputRef.value
-    if (!inputValue)
-      return
+    if (!inputValue) return
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
@@ -58,9 +63,14 @@ export default () => {
     requestWithLatestMessage()
   }
 
-  const smoothToBottom = useThrottleFn(() => {
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
-  }, 300, false, true)
+  const smoothToBottom = useThrottleFn(
+    () => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+    },
+    300,
+    false,
+    true,
+  )
 
   const requestWithLatestMessage = async() => {
     setLoading(true)
@@ -68,45 +78,9 @@ export default () => {
     setCurrentError(null)
     const storagePassword = localStorage.getItem('pass')
     try {
-      // TODO: only first message
-      // TODO: message keywords
-      // >> append search engine text
-      const userMessage = messageList()?.[messageList().length - 1]?.content
-
-      const searchResponse = await fetch('/api/search', {
-        method: 'POSt',
-        body: JSON.stringify({
-          q: userMessage,
-          pass: storagePassword,
-        }),
-      })
-
-      const searchResult = await searchResponse.json()
-      const searchBoxText = searchResult?.answerBox?.answer
-      const searchSnippetsText = (searchResult?.organic ?? [])
-        .slice(0, 4)
-        .map((o: any) => `> \`${o.title}\` - ${o.snippet}`)
-        .join('\n\n')
-
-      if (searchSnippetsText.trim().length > 0) {
-        const content = searchBoxText === undefined
-          ? `Search Engine Snippets:\n${searchSnippetsText}`
-          : `Search Engine Answer: ${searchBoxText}\nSearch Engine Snippets:\n${searchSnippetsText}`
-
-        setMessageList([
-          ...messageList(),
-          {
-            role: 'system',
-            content,
-          },
-        ])
-      }
-
-      // << append search engine text
-
       const controller = new AbortController()
       setController(controller)
-      const requestMessageList = [...messageList()]
+      const requestMessageList = [...messageList()].map(({ content, role }) => ({ content, role }))
 
       if (currentSystemRoleSettings()) {
         requestMessageList.unshift({
@@ -135,8 +109,7 @@ export default () => {
         throw new Error('Request failed')
       }
       const data = response.body
-      if (!data)
-        throw new Error('No data')
+      if (!data) throw new Error('No data')
 
       const reader = data.getReader()
       const decoder = new TextDecoder('utf-8')
@@ -162,18 +135,92 @@ export default () => {
       setController(null)
       return
     }
-    archiveCurrentMessage()
+    await archiveCurrentMessage()
   }
 
-  const archiveCurrentMessage = () => {
-    if (currentAssistantMessage()) {
-      setMessageList([
-        ...messageList(),
+  async function search(message: string) {
+    const searchResponse = await fetch('/api/search', {
+      method: 'POSt',
+      body: JSON.stringify({
+        q: message,
+        pass: localStorage.getItem('pass'),
+      }),
+    })
+
+    const searchResult = await searchResponse.json()
+    const searchBoxText = searchResult?.answerBox?.answer
+    const searchSnippetsText = (searchResult?.organic ?? [])
+      .slice(0, 3)
+      .map((o: any, idx: number) => `${idx + 1}. \`${o.title}\` - ${o.snippet}`)
+      .join('\n\n')
+
+    if (searchResult?.organic?.length > 0) {
+      const content
+        = searchBoxText === undefined
+          ? `Search Engine Snippets:\n${searchSnippetsText}`
+          : `Search Engine Answer: ${searchBoxText}\nSearch Engine Snippets:\n${searchSnippetsText}`
+      return { content, organic: searchResult?.organic }
+    }
+  }
+
+  async function load(url: string) {
+    const lookResponse = await fetch('/api/load', {
+      method: 'POST',
+      body: JSON.stringify({
+        url,
+        pass: localStorage.getItem('pass'),
+      }),
+    })
+    if (lookResponse.status === 200) {
+      const { content } = await lookResponse.json()
+      return content
+    }
+  }
+
+  const archiveCurrentMessage = async() => {
+    const aiMessage = currentAssistantMessage()
+    if (aiMessage) {
+      const messages: any = [
         {
           role: 'assistant',
-          content: currentAssistantMessage(),
+          content: aiMessage,
         },
-      ])
+      ]
+      if (aiMessage.startsWith('SEARCH:')) {
+        // TODO: refactor, here is actions
+        const searchQuery = aiMessage.split('\n')[0].substring('SEARCH:'.length)
+        const { content, organic } = await search(searchQuery)
+        messages.push({
+          role: 'system',
+          content: content ?? 'Not found anything in WWW',
+          organic,
+        })
+        setMessageList([...messageList(), ...messages])
+        smoothToBottom()
+        return requestWithLatestMessage()
+      }
+
+      if (aiMessage.startsWith('LOOK:')) {
+        const searchItemIndex = parseInt(aiMessage.substring('LOOK: item'.length)) ?? 0
+        const searchItem = messageList().reverse().map(m => m.organic).find(m => m !== undefined)?.[searchItemIndex]
+        const linkContent = await load(searchItem?.link)
+        if (linkContent) {
+          messages.push({
+            role: 'system',
+            content: `Here is the content of that page:\n${linkContent}`,
+          })
+        } else {
+          messages.push({
+            role: 'system',
+            content: `Unfortunately currently that item ${searchItemIndex} is not accessible`,
+          })
+        }
+
+        setMessageList([...messageList(), ...messages])
+        smoothToBottom()
+        return requestWithLatestMessage()
+      }
+      setMessageList([...messageList(), ...messages])
       setCurrentAssistantMessage('')
       setLoading(false)
       setController(null)
@@ -207,11 +254,9 @@ export default () => {
   }
 
   const handleKeydown = (e: KeyboardEvent) => {
-    if (e.isComposing || e.shiftKey)
-      return
+    if (e.isComposing || e.shiftKey) return
 
-    if (e.key === 'Enter')
-      handleButtonClick()
+    if (e.key === 'Enter') handleButtonClick()
   }
 
   return (
@@ -228,24 +273,28 @@ export default () => {
           <MessageItem
             role={message().role}
             message={message().content}
-            showRetry={() => (message().role === 'assistant' && index === messageList().length - 1)}
+            showRetry={() =>
+              message().role === 'assistant'
+              && index === messageList().length - 1
+            }
             onRetry={retryLastFetch}
           />
         )}
       </Index>
       {currentAssistantMessage() && (
-        <MessageItem
-          role="assistant"
-          message={currentAssistantMessage}
-        />
+        <MessageItem role="assistant" message={currentAssistantMessage} />
       )}
-      { currentError() && <ErrorMessageItem data={currentError()} onRetry={retryLastFetch} /> }
+      {currentError() && (
+        <ErrorMessageItem data={currentError()} onRetry={retryLastFetch} />
+      )}
       <Show
         when={!loading()}
         fallback={() => (
           <div class="gen-cb-wrapper">
             <span>AI is thinking...</span>
-            <div class="gen-cb-stop" onClick={stopStreamFetch}>Stop</div>
+            <div class="gen-cb-stop" onClick={stopStreamFetch}>
+              Stop
+            </div>
           </div>
         )}
       >
@@ -264,10 +313,19 @@ export default () => {
             rows="1"
             class="gen-textarea"
           />
-          <button onClick={handleButtonClick} disabled={systemRoleEditing()} gen-slate-btn>
+          <button
+            onClick={handleButtonClick}
+            disabled={systemRoleEditing()}
+            gen-slate-btn
+          >
             Send
           </button>
-          <button title="Clear" onClick={clear} disabled={systemRoleEditing()} gen-slate-btn>
+          <button
+            title="Clear"
+            onClick={clear}
+            disabled={systemRoleEditing()}
+            gen-slate-btn
+          >
             <IconClear />
           </button>
         </div>
