@@ -228,7 +228,7 @@ export default () => {
             // TODO: maybe faster model ?
             const summary = await summarize(organic?.[i]?.link, messageList().reverse().find(m => m.role === 'user').content)
             // remove some negative summary
-            if (summary !== undefined && !['cannot', 'sorry'].some(keyword => summary.toLowerCase().includes(keyword))) {
+            if (summary !== undefined && !['cannot', 'sorry', 'does not'].some(keyword => summary.toLowerCase().includes(keyword))) {
               setMessageList([
                 ...messageList(),
                 {
