@@ -29,7 +29,6 @@ export default defineConfig({
   output: 'server',
   adapter: envAdapter(),
   vite: {
-    envPrefix: '',
     plugins: [
       process.env.OUTPUT === 'vercel' && vercelDisableBlocks(),
       process.env.OUTPUT === 'netlify' && vercelDisableBlocks(),
