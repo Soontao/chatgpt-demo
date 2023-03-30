@@ -1,3 +1,8 @@
+ARG OPENAI_API_KEY
+ARG SITE_PASSWORD
+ARG SERPER_KEY
+ARG OPENAI_API_MODEL
+
 FROM node:alpine
 WORKDIR /usr/src
 RUN npm install -g pnpm
