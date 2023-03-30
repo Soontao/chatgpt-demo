@@ -2,11 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "command": "./node_modules/.bin/astro dev --host",
+      "command": "./node_modules/.bin/astro dev",
       "name": "Development server",
       "request": "launch",
       "type": "node-terminal",
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "NODE_OPTIONS": "--openssl-legacy-provider"
+      }
     }
   ]
 }

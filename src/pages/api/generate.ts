@@ -29,11 +29,9 @@ export const post: APIRoute = async(context) => {
       },
     }), { status: 401 })
   }
-  const initOptions = generatePayload(apiKey, messages)
-  // #vercel-disable-blocks
+  const initOptions = generatePayload(apiKey, messages, true)
   if (httpsProxy)
     initOptions.dispatcher = new ProxyAgent(httpsProxy)
-  // #vercel-end
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-expect-error

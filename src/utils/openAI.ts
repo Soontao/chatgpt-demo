@@ -4,7 +4,7 @@ import type { ChatMessage } from '@/types'
 
 const model = import.meta.env.OPENAI_API_MODEL || 'gpt-3.5-turbo'
 
-export const generatePayload = (apiKey: string, messages: ChatMessage[]): RequestInit & { dispatcher?: any } => ({
+export const generatePayload = (apiKey: string, messages: ChatMessage[], stream = false): RequestInit & { dispatcher?: any } => ({
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${apiKey}`,
@@ -12,9 +12,9 @@ export const generatePayload = (apiKey: string, messages: ChatMessage[]): Reques
   method: 'POST',
   body: JSON.stringify({
     model,
-    messages,
     temperature: 0,
-    stream: true,
+    messages,
+    stream,
   }),
 })
 

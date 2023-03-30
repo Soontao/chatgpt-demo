@@ -1,7 +1,7 @@
 import { Index, Show, createSignal, onCleanup, onMount } from 'solid-js'
 import { useThrottleFn } from 'solidjs-use'
 import { generateSignature } from '@/utils/auth'
-import { SYSTEM_PROMPT } from '@/prompts/system'
+import { SYSTEM_PROMPT, TOOL_LOOK_PROMPT } from '@/prompts/system'
 import IconClear from './icons/Clear'
 import MessageItem from './MessageItem'
 import SystemRoleSettings from './SystemRoleSettings'
@@ -138,9 +138,26 @@ export default () => {
     await archiveCurrentMessage()
   }
 
+  async function summarize(url: string, searchText: string) {
+    // TODO: use OpenAI summarize the detail page for question
+    const response = await fetch('/api/summarize', {
+      method: 'post',
+      body: JSON.stringify({
+        url,
+        pass: localStorage.getItem('pass'),
+        question: searchText.trim(),
+      }),
+    })
+
+    const { message } = await response.json()
+    if (message)
+      return message.content
+  }
+
   async function search(message: string) {
+    // TODO: use OpenAI summarize the detail page for question
     const searchResponse = await fetch('/api/search', {
-      method: 'POSt',
+      method: 'post',
       body: JSON.stringify({
         q: message,
         pass: localStorage.getItem('pass'),
@@ -154,18 +171,21 @@ export default () => {
       .map((o: any, idx: number) => `${idx + 1}. \`${o.title}\` - ${o.snippet}`)
       .join('\n\n')
 
-    if (searchResult?.organic?.length > 0) {
-      const content
-        = searchBoxText === undefined
-          ? `Search Engine Snippets:\n${searchSnippetsText}`
-          : `Search Engine Answer: ${searchBoxText}\nSearch Engine Snippets:\n${searchSnippetsText}`
-      return { content, organic: searchResult?.organic }
-    }
+    const parts = []
+
+    // TODO: live update
+    if (searchBoxText !== undefined)
+      parts.push(`Search Engine Answer:\n${searchBoxText}\n`)
+
+    if (searchSnippetsText)
+      parts.push(`Search Engine Snippets:\n${searchSnippetsText}`)
+
+    return { content: parts.join('\n'), organic: searchResult?.organic }
   }
 
-  async function load(url: string) {
+  async function look(url: string) {
     const lookResponse = await fetch('/api/load', {
-      method: 'POST',
+      method: 'post',
       body: JSON.stringify({
         url,
         pass: localStorage.getItem('pass'),
@@ -181,52 +201,93 @@ export default () => {
     const aiMessage = currentAssistantMessage()
     // ai response nothing, means no input from AI
     if (aiMessage) {
-      const messages: any = [
+      setCurrentAssistantMessage('')
+      setMessageList([
+        ...messageList(),
         {
           role: 'assistant',
           content: aiMessage,
         },
-      ]
+      ])
       if (aiMessage.startsWith('SEARCH:')) {
-        // TODO: refactor, here is actions
         const searchQuery = aiMessage.split('\n')[0].substring('SEARCH:'.length)
         const { content, organic } = await search(searchQuery)
-        messages.push({
-          role: 'system',
-          content: content ?? 'Not found anything in WWW',
-          organic,
-        })
-        setMessageList([...messageList(), ...messages])
+
+        setMessageList([
+          ...messageList(), {
+            role: 'system',
+            content: content ?? 'Not found anything in WWW',
+            organic,
+          },
+        ])
         smoothToBottom()
+
+        try {
+          // TODO: parallel ?
+          for (let i = 0; i < 3; i++) {
+            // TODO: maybe faster model ?
+            const summary = await summarize(organic?.[i]?.link, messageList().reverse().find(m => m.role === 'user').content)
+            // remove some negative summary
+            if (summary !== undefined && !['cannot', 'sorry'].some(keyword => summary.toLowerCase().includes(keyword))) {
+              setMessageList([
+                ...messageList(),
+                {
+                  role: 'system',
+                  content: `Search Item ${i + 1} Summary:\n> ${summary}\n`,
+                }],
+              )
+              smoothToBottom()
+            }
+          }
+        } catch (error) {
+          console.error('summarized failed', error)
+        }
+
         return requestWithLatestMessage()
       }
 
       if (aiMessage.startsWith('LOOK:')) {
         const searchItemIndex = parseInt(aiMessage.substring('LOOK: item'.length)) ?? 0
         const searchItem = messageList().reverse().map(m => m.organic).find(m => m !== undefined)?.[searchItemIndex]
-        const linkContent = await load(searchItem?.link)
-        if (linkContent) {
-          messages.push({
-            role: 'system',
-            content: `Here is the content of that page:\n${linkContent}`,
-          })
+        if (searchItem === undefined) {
+          setMessageList([
+            ...messageList(), {
+              role: 'system',
+              content: `Unfortunately the LOOK command is not correctly:\n${TOOL_LOOK_PROMPT}`,
+            },
+          ])
+          smoothToBottom()
         } else {
-          messages.push({
-            role: 'system',
-            content: `Unfortunately currently that item ${searchItemIndex} is not accessible`,
-          })
-        }
+          const linkContent = await look(searchItem?.link)
+          if (linkContent) {
+            setMessageList([
+              ...messageList(), {
+                role: 'system',
+                content: `Here is the content of that page:\n${linkContent}`,
+              },
+            ])
+          } else {
+            setMessageList([
+              ...messageList(), {
+                role: 'system',
+                content: `Unfortunately currently that item ${searchItemIndex} is not accessible`,
+              },
+            ])
+          }
 
-        setMessageList([...messageList(), ...messages])
-        smoothToBottom()
-        return requestWithLatestMessage()
+          smoothToBottom()
+          return requestWithLatestMessage()
+        }
       }
 
-      if (aiMessage.startsWith('SCRIPT:')) {
-        let script = aiMessage.substring('SCRIPT:'.length).trim()
+      if (aiMessage.includes('SCRIPT:')) {
+        let script = aiMessage.substring(aiMessage.indexOf('SCRIPT:') + 'SCRIPT:'.length).trim()
 
-        if (script.startsWith('```'))
-          script = script.substring(script.indexOf('```') + 3, script.lastIndexOf('```'))
+        if (script.startsWith('```')) {
+          const start = script.indexOf('```') + 3
+          const end = script.indexOf('```', start + 1)
+          script = script.substring(start, end)
+        }
 
         const response = await fetch('/api/script', {
           method: 'post',
@@ -238,24 +299,25 @@ export default () => {
         const { result, error } = await response.json()
 
         if (error) {
-          messages.push({
-            role: 'system',
-            content: `Execute script failed:\n\n\`${error}\``,
-          })
+          setMessageList([
+            ...messageList(), {
+              role: 'system',
+              content: `Execute script failed:\n\n\`${error}\``,
+            },
+          ])
         } else {
-          messages.push({
-            role: 'system',
-            content: `Script result is:\n\n\`\`\`\n${result}\n\`\`\``,
-          })
+          setMessageList([
+            ...messageList(), {
+              role: 'system',
+              content: `Script result is:\n\n\`\`\`\n${result}\n\`\`\``,
+            },
+          ])
         }
-
-        setMessageList([...messageList(), ...messages])
         smoothToBottom()
         return requestWithLatestMessage()
       }
-      setMessageList([...messageList(), ...messages])
     }
-    setCurrentAssistantMessage('')
+
     setLoading(false)
     setController(null)
     inputRef.focus()
