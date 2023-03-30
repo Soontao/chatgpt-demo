@@ -7,7 +7,7 @@ export function validatePassword(pass: string) {
 }
 
 export function validatePass(pass: string) {
-  if (validatePassword(pass)) {
+  if (!validatePassword(pass)) {
     return new Response(
       JSON.stringify({
         error: {
