@@ -197,8 +197,8 @@ export default () => {
           content: aiMessage,
         },
       ])
-      if (aiMessage.startsWith('SEARCH:')) {
-        const searchQuery = aiMessage.split('\n')[0].substring('SEARCH:'.length)
+      if (aiMessage.includes('SEARCH:')) {
+        const searchQuery = aiMessage.substring(aiMessage.indexOf('SEARCH:')).split('\n')[0]
         const { content, organic } = await search(searchQuery)
 
         setMessageList([
