@@ -138,7 +138,7 @@ export default () => {
     await archiveCurrentMessage()
   }
 
-  async function summarize(url: string, searchText: string) {
+  async function summarize(url: string, searchText: string): Promise<string> {
     // TODO: use OpenAI summarize the detail page for question
     const response = await fetch('/api/summarize', {
       method: 'post',
@@ -149,9 +149,11 @@ export default () => {
       }),
     })
 
-    const { message } = await response.json()
+    const { message, error } = await response.json()
     if (message)
       return message.content
+    else
+      return `Unfortunately, cannot summarize url ${url}:\n${error}`
   }
 
   async function search(message: string) {
@@ -183,20 +185,6 @@ export default () => {
     return { content: parts.join('\n'), organic: searchResult?.organic }
   }
 
-  async function look(url: string) {
-    const lookResponse = await fetch('/api/load', {
-      method: 'post',
-      body: JSON.stringify({
-        url,
-        pass: localStorage.getItem('pass'),
-      }),
-    })
-    if (lookResponse.status === 200) {
-      const { content } = await lookResponse.json()
-      return content
-    }
-  }
-
   const archiveCurrentMessage = async() => {
     const aiMessage = currentAssistantMessage()
     // ai response nothing, means no input from AI
@@ -222,27 +210,6 @@ export default () => {
         ])
         smoothToBottom()
 
-        try {
-          // TODO: parallel ?
-          for (let i = 0; i < 3; i++) {
-            // TODO: maybe faster model ?
-            const summary = await summarize(organic?.[i]?.link, messageList().reverse().find(m => m.role === 'user').content)
-            // remove some negative summary
-            if (summary !== undefined && !['cannot', 'sorry', 'does not'].some(keyword => summary.toLowerCase().includes(keyword))) {
-              setMessageList([
-                ...messageList(),
-                {
-                  role: 'system',
-                  content: `Search Item ${i + 1} Summary:\n> ${summary}\n`,
-                }],
-              )
-              smoothToBottom()
-            }
-          }
-        } catch (error) {
-          console.error('summarized failed', error)
-        }
-
         return requestWithLatestMessage()
       }
 
@@ -258,7 +225,9 @@ export default () => {
           ])
           smoothToBottom()
         } else {
-          const linkContent = await look(searchItem?.link)
+          const userQuestion = messageList().reverse().find(m => m.role === 'user').content
+          const linkContent = await summarize(searchItem.link, userQuestion)
+
           if (linkContent) {
             setMessageList([
               ...messageList(), {
