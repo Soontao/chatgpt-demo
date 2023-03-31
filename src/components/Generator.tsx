@@ -223,7 +223,6 @@ export default () => {
               content: `Unfortunately the LOOK command is not correctly:\n${TOOL_LOOK_PROMPT}`,
             },
           ])
-          smoothToBottom()
         } else {
           const userQuestion = messageList().reverse().find(m => m.role === 'user').content
           const linkContent = await summarize(searchItem.link, userQuestion)
@@ -243,10 +242,9 @@ export default () => {
               },
             ])
           }
-
-          smoothToBottom()
-          return requestWithLatestMessage()
         }
+        smoothToBottom()
+        return requestWithLatestMessage()
       }
 
       if (aiMessage.includes('SCRIPT:')) {
