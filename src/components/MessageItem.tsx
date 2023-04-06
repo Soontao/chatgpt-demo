@@ -3,6 +3,7 @@ import MarkdownIt from 'markdown-it'
 import mdKatex from 'markdown-it-katex'
 import mdHighlight from 'markdown-it-highlightjs'
 import { useClipboard, useEventListener } from 'solidjs-use'
+import { createKrokiLink } from '@/utils/kroki'
 import IconRefresh from './icons/Refresh'
 import type { Accessor } from 'solid-js'
 import type { ChatMessage } from '@/types'
@@ -13,6 +14,12 @@ interface Props {
   showRetry?: Accessor<boolean>
   onRetry?: () => void
 }
+
+const SUPPORT_DIAGRAMS = [
+  'd2',
+  'plantuml',
+  'mermaid',
+]
 
 export default ({ role, message, showRetry, onRetry }: Props) => {
   const roleClass = {
@@ -44,9 +51,16 @@ export default ({ role, message, showRetry, onRetry }: Props) => {
       breaks: true,
     }).use(mdKatex).use(mdHighlight)
     const fence = md.renderer.rules.fence!
+    const msgContent = typeof message === 'function' ? message() : message
     md.renderer.rules.fence = (...args) => {
       const [tokens, idx] = args
       const token = tokens[idx]
+      // with supported diagram definition
+      // after fully get the AI output
+      // then convert to svg to display
+      if (SUPPORT_DIAGRAMS.includes(token.info) && /```[\s\S]*```/gm.test(msgContent))
+        return `<img width="100%" src="${createKrokiLink(token.info, token.content)}">`
+
       const rawCode = fence(...args)
 
       return `<div relative>

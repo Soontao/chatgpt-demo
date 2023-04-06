@@ -248,7 +248,8 @@ export default () => {
       }
 
       if (aiMessage.includes('SCRIPT:')) {
-        let script = aiMessage.substring(aiMessage.indexOf('SCRIPT:') + 'SCRIPT:'.length).trim()
+        let script = aiMessage
+          .substring(aiMessage.indexOf('SCRIPT:') + 'SCRIPT:'.length).trim()
 
         if (script.startsWith('```')) {
           const start = script.indexOf('```') + 3
