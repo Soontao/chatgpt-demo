@@ -2,6 +2,24 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "dev",
+      "program": "${workspaceFolder}/node_modules/astro/astro.js",
+      "args": [
+        "dev"
+      ],
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "sourceMaps": true,
+      "outputCapture": "std",
+      "runtimeVersion": "18",
+      "type": "node",
+      "env": {
+        "NODE_OPTIONS": "--openssl-legacy-provider"
+      }
+    },
+    {
       "command": "./node_modules/.bin/astro dev",
       "name": "Development server",
       "request": "launch",

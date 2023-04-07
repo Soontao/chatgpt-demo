@@ -28,7 +28,7 @@ export const post: APIRoute = async(context) => {
   try {
     const stdOutputs = []
     await fs.writeFile(tmpJsFile, script, { encoding: 'utf-8' })
-
+    // TODO: timeout
     const r = await new Promise((resolve, reject) => {
       const w = new Worker(tmpJsFile, { stdout: true, stderr: true })
       w.on('exit', async(code) => {

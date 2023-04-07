@@ -247,12 +247,14 @@ export default () => {
         return requestWithLatestMessage()
       }
 
-      if (aiMessage.includes('SCRIPT:')) {
-        let script = aiMessage
-          .substring(aiMessage.indexOf('SCRIPT:') + 'SCRIPT:'.length).trim()
+      const SCRIPT_PREFIX = '```js+script'
 
-        if (script.startsWith('```')) {
-          const start = script.indexOf('```') + 3
+      if (aiMessage.includes(SCRIPT_PREFIX)) {
+        let script = aiMessage
+          .substring(aiMessage.indexOf(SCRIPT_PREFIX)).trim()
+
+        if (script.startsWith(SCRIPT_PREFIX)) {
+          const start = script.indexOf(SCRIPT_PREFIX) + SCRIPT_PREFIX.length
           const end = script.indexOf('```', start + 1)
           script = script.substring(start, end)
         }
